@@ -1,0 +1,1903 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>BizDashboard - Arfa Motor</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,sans-serif;background:#f1f5f9}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;font-size:13px;cursor:pointer;color:#94a3b8;transition:all .15s;margin:2px 8px;text-decoration:none}
+.nav-item:hover{background:#1e293b;color:#fff}
+.nav-item.active{background:#2563eb;color:#fff;font-weight:600}
+.nav-badge{margin-left:auto;background:rgba(255,255,255,.2);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.nav-item:not(.active) .nav-badge{background:#334155;color:#94a3b8}
+.page{display:none}
+.page.active{display:block}
+.inp{width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px;font-size:14px;color:#1e293b;outline:none;transition:all .15s;background:#fff}
+.inp:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.15)}
+.btn{background:#2563eb;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s}
+.btn:hover{background:#1d4ed8}
+.btn:disabled{background:#93c5fd;cursor:not-allowed}
+.btn-g{background:#22c55e}.btn-g:hover{background:#16a34a}
+.btn-r{background:#ef4444}.btn-r:hover{background:#dc2626}
+.btn-gray{background:#64748b}.btn-gray:hover{background:#475569}
+.btn-sm{padding:6px 12px;font-size:12px}
+.card{background:#fff;border-radius:12px;padding:16px;border:1px solid #f1f5f9;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+/* Modal - only for mOrder */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:620px;max-height:92vh;overflow-y:auto}
+.lbl{display:block;font-size:11px;font-weight:600;color:#64748b;text-transform:uppercase;margin-bottom:4px}
+.lbl-req::after{content:" *";color:#ef4444}
+/* Inline form box */
+.inline-form-box{display:none;background:#f8fafc;border:2px solid #3b82f6;border-radius:12px;padding:20px;margin-bottom:16px;animation:slideDown .2s ease}
+@keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+/* Toast notification */
+.toast{position:fixed;bottom:24px;right:24px;z-index:9999;padding:12px 20px;border-radius:10px;font-size:14px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.15);animation:slideUp .3s ease;max-width:320px}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.toast-success{background:#22c55e;color:#fff}
+.toast-error{background:#ef4444;color:#fff}
+/* Loading spinner */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* Empty state */
+.empty-state{text-align:center;padding:48px 20px;color:#94a3b8}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.empty-state p{font-size:14px;margin:4px 0}
+.empty-state .hint{font-size:12px;color:#cbd5e1;margin-top:8px}
+/* Status badge */
+.badge{display:inline-flex;align-items:center;font-size:11px;font-weight:600;padding:3px 8px;border-radius:20px}
+/* Hover row */
+tr.trow:hover td{background:#f8fafc}
+/* Quick start card */
+.quick-start{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border-radius:16px;padding:24px;margin-bottom:16px}
+.quick-start h2{font-size:18px;font-weight:700;margin:0 0 8px}
+.quick-start p{font-size:13px;opacity:.85;margin:0 0 12px}
+.quick-start ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.quick-start li{display:flex;align-items:center;gap:10px;font-size:13px;background:rgba(255,255,255,.15);border-radius:8px;padding:8px 12px}
+.quick-start li .step{background:rgba(255,255,255,.3);border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+</style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+<!-- SIDEBAR -->
+<aside class="w-56 min-w-56 bg-slate-900 text-white flex flex-col h-screen">
+  <div class="flex items-center gap-2 px-4 py-4 border-b border-slate-700">
+    <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center font-bold text-sm">B</div>
+    <div>
+      <p class="text-sm font-bold" id="bizName">BizDashboard</p>
+      <p class="text-xs text-slate-400" id="bizSub">Arfa Motor</p>
+    </div>
+  </div>
+  <nav class="flex-1 py-3 overflow-y-auto">
+    <a class="nav-item active" onclick="go(event,'dashboard')" href="#">📊 Dashboard</a>
+    <a class="nav-item" onclick="go(event,'orders')" href="#">🛒 Orders<span class="nav-badge" id="nb-orders">0</span></a>
+    <a class="nav-item" onclick="go(event,'cashflow')" href="#">💰 Cashflow</a>
+    <a class="nav-item" onclick="go(event,'inventory')" href="#">📦 Inventory<span class="nav-badge" id="nb-inv">0</span></a>
+    <a class="nav-item" onclick="go(event,'toko')" href="#">🏪 Toko / Channel<span class="nav-badge" id="nb-toko">0</span></a>
+    <a class="nav-item" onclick="go(event,'biaya')" href="#">💸 Biaya Operasional</a>
+    <a class="nav-item" onclick="go(event,'ai')" href="#">🤖 AI Insight</a>
+    <a class="nav-item" onclick="go(event,'laporan')" href="#">📄 Laporan</a>
+    <a class="nav-item" onclick="go(event,'settings')" href="#">⚙️ Settings</a>
+  </nav>
+  <div class="px-4 py-4 border-t border-slate-700">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold" id="ownerAvatar">A</div>
+      <div>
+        <p class="text-sm font-medium" id="ownerName">Admin</p>
+        <p class="text-xs text-slate-400">Owner</p>
+      </div>
+    </div>
+    <p class="text-xs text-slate-500 mt-2" id="sDate"></p>
+    <p class="text-xs text-slate-500" id="sTime"></p>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<div class="flex-1 flex flex-col overflow-hidden">
+  <header class="bg-white border-b px-6 py-3 flex items-center justify-between">
+    <h1 class="text-xl font-bold text-slate-800" id="pageTitle">Dashboard</h1>
+    <span class="text-xs text-slate-400 bg-slate-100 px-3 py-1 rounded-full" id="hDate"></span>
+  </header>
+  <main class="flex-1 overflow-y-auto p-5">
+
+<!-- ═══════════════════════════════════════════════════════ DASHBOARD ═══ -->
+<div id="dashboard" class="page active space-y-4">
+  <!-- Quick Start (shown when no orders) -->
+  <div id="quickStart" class="quick-start" style="display:none">
+    <h2>🚀 Selamat Datang di BizDashboard!</h2>
+    <p>Belum ada data. Mulai dengan langkah berikut:</p>
+    <ol>
+      <li><span class="step">1</span> Tambah Toko/Channel di menu <strong>Toko / Channel</strong></li>
+      <li><span class="step">2</span> Tambah produk di menu <strong>Inventory</strong></li>
+      <li><span class="step">3</span> Input order pertama di menu <strong>Orders</strong></li>
+    </ol>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div class="card"><div class="flex items-start justify-between"><div><p class="text-xs text-slate-400 uppercase font-semibold">Total Omset</p><p class="text-2xl font-bold text-slate-800 mt-1" id="d-omset">Rp 0</p><p class="text-xs text-slate-400 mt-1">Semua order aktif</p></div><div class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">🛒</div></div></div>
+    <div class="card"><div class="flex items-start justify-between"><div><p class="text-xs text-slate-400 uppercase font-semibold">Est. Profit 20%</p><p class="text-2xl font-bold text-green-600 mt-1" id="d-profit">Rp 0</p><p class="text-xs text-slate-400 mt-1">Estimasi 20%</p></div><div class="w-9 h-9 bg-green-100 rounded-lg flex items-center justify-center">📈</div></div></div>
+    <div class="card"><div class="flex items-start justify-between"><div><p class="text-xs text-slate-400 uppercase font-semibold">Total Pengeluaran</p><p class="text-2xl font-bold text-red-500 mt-1" id="d-pengeluaran">Rp 0</p><p class="text-xs text-slate-400 mt-1">Biaya operasional</p></div><div class="w-9 h-9 bg-red-100 rounded-lg flex items-center justify-center">💸</div></div></div>
+    <div class="card"><div class="flex items-start justify-between"><div><p class="text-xs text-slate-400 uppercase font-semibold">Saldo Akhir</p><p class="text-2xl font-bold text-slate-800 mt-1" id="d-saldo">Rp 0</p><p class="text-xs text-slate-400 mt-1">Omset - Pengeluaran</p></div><div class="w-9 h-9 bg-purple-100 rounded-lg flex items-center justify-center">💳</div></div></div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="card lg:col-span-2">
+      <p class="text-xs font-bold text-slate-500 uppercase mb-3">Omset 14 Hari Terakhir</p>
+      <canvas id="dashChart" height="130"></canvas>
+    </div>
+    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-xs font-bold text-blue-600 uppercase">🤖 AI Insight</p>
+        <span class="text-xs text-slate-400" id="ai-update">-</span>
+      </div>
+      <p class="text-xs text-slate-500 mb-1">Produk terlaris:</p>
+      <p class="text-base font-bold text-slate-800" id="ai-top">-</p>
+      <div class="bg-white rounded-lg p-3 mt-3 mb-3">
+        <p class="text-xs font-bold text-slate-400 uppercase">Status Bisnis</p>
+        <p class="text-xl font-black mt-0.5" id="ai-status">-</p>
+      </div>
+      <div id="ai-tips" class="space-y-1.5"></div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+    <div class="card">
+      <p class="text-xs font-bold text-slate-500 uppercase mb-3">Top 3 Produk</p>
+      <div id="d-top3" class="space-y-2 text-sm"><span class="text-slate-400 text-xs">Belum ada data</span></div>
+    </div>
+    <div class="card">
+      <p class="text-xs font-bold text-slate-500 uppercase mb-3">Performa Toko</p>
+      <div id="d-toko-perf" class="space-y-2 text-sm"><span class="text-slate-400 text-xs">Belum ada data</span></div>
+    </div>
+    <div class="card">
+      <p class="text-xs font-bold text-slate-500 uppercase mb-3">Order Status</p>
+      <div class="space-y-2.5">
+        <div class="flex justify-between text-sm"><span class="text-slate-500">📦 Siap Kirim</span><span class="font-bold text-yellow-500" id="st-siapkirim">0</span></div>
+        <div class="flex justify-between text-sm"><span class="text-slate-500">🚚 Delivery</span><span class="font-bold text-blue-500" id="st-delivery">0</span></div>
+        <div class="flex justify-between text-sm"><span class="text-slate-500">✅ Paid</span><span class="font-bold text-green-500" id="st-paid">0</span></div>
+        <div class="flex justify-between text-sm"><span class="text-slate-500">❌ Batal</span><span class="font-bold text-red-400" id="st-batal">0</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <p class="text-xs font-bold text-slate-500 uppercase mb-3">Ringkasan Hari Ini</p>
+      <div class="space-y-2.5 text-sm">
+        <div class="flex justify-between"><span class="text-slate-500">Omset</span><span class="font-bold" id="today-omset">Rp 0</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Order</span><span class="font-bold" id="today-order">0</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Profit</span><span class="font-bold text-green-600" id="today-profit">Rp 0</span></div>
+        <div class="flex justify-between"><span class="text-slate-500">Pengeluaran</span><span class="font-bold text-red-500" id="today-biaya">Rp 0</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ ORDERS ═══ -->
+<div id="orders" class="page space-y-4">
+  <!-- Warning: no tokos configured -->
+  <div id="noTokoWarn" class="hidden bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+    <span class="text-xl">⚠️</span>
+    <div>
+      <p class="text-sm font-semibold text-amber-800">Belum ada toko/channel yang dikonfigurasi</p>
+      <p class="text-xs text-amber-600">Tambahkan toko terlebih dahulu di menu <a href="#" onclick="go(event,'toko')" class="underline font-bold">Toko / Channel</a> sebelum input order.</p>
+    </div>
+  </div>
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <div class="flex gap-2 flex-wrap">
+      <input id="srchOrder" type="text" placeholder="Cari produk, toko, resi..." class="inp" style="max-width:260px" oninput="renderOrders()"/>
+      <select id="filterStatus" class="inp" style="max-width:150px" onchange="renderOrders()">
+        <option value="">Semua Status</option>
+        <option>Siap Kirim</option>
+        <option>Delivery</option>
+        <option>Paid</option>
+        <option>Batal</option>
+      </select>
+    </div>
+    <button class="btn" onclick="openModal('mOrder')">➕ Input Order</button>
+  </div>
+  <div class="card p-0 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 border-b">
+          <tr>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Tanggal</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Toko</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">No Resi</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Produk</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Varian</th>
+            <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">Qty</th>
+            <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">Harga Jual</th>
+            <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">Omset</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Status</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody id="orderTbody">
+          <tr><td colspan="10" class="text-center py-10 text-slate-400">Belum ada order. Klik ➕ Input Order.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="px-4 py-3 bg-slate-50 border-t flex justify-between">
+      <p class="text-xs text-slate-500" id="orderCount">0 order</p>
+      <p class="text-sm font-bold" id="orderGrandTotal">Total Omset: Rp 0</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ CASHFLOW ═══ -->
+<div id="cashflow" class="page space-y-4">
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div class="card border-l-4 border-green-500">
+      <p class="text-xs text-slate-400 uppercase font-semibold">✅ Paid</p>
+      <p class="text-2xl font-bold text-green-600 mt-1" id="cf-paid">Rp 0</p>
+      <p class="text-xs text-slate-400 mt-1" id="cf-paid-count">0 order</p>
+    </div>
+    <div class="card border-l-4 border-blue-500">
+      <p class="text-xs text-slate-400 uppercase font-semibold">🚚 Delivery</p>
+      <p class="text-2xl font-bold text-blue-600 mt-1" id="cf-delivery">Rp 0</p>
+      <p class="text-xs text-slate-400 mt-1" id="cf-delivery-count">0 order</p>
+    </div>
+    <div class="card border-l-4 border-yellow-500">
+      <p class="text-xs text-slate-400 uppercase font-semibold">📦 Siap Kirim</p>
+      <p class="text-2xl font-bold text-yellow-500 mt-1" id="cf-siapkirim">Rp 0</p>
+      <p class="text-xs text-slate-400 mt-1" id="cf-siapkirim-count">0 order</p>
+    </div>
+    <div class="card border-l-4 border-slate-400">
+      <p class="text-xs text-slate-400 uppercase font-semibold">💰 Total Omset (Paid)</p>
+      <p class="text-2xl font-bold text-slate-800 mt-1" id="cf-omset">Rp 0</p>
+      <p class="text-xs text-green-600 mt-1">Dari order Paid</p>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Uang Masuk (Paid)</p><p class="text-2xl font-bold text-green-600 mt-1" id="cf-masuk">Rp 0</p></div>
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Uang Keluar</p><p class="text-2xl font-bold text-red-500 mt-1" id="cf-keluar">Rp 0</p></div>
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Net Cashflow</p><p class="text-2xl font-bold text-blue-600 mt-1" id="cf-net">Rp 0</p></div>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="card">
+      <p class="text-sm font-bold text-green-600 mb-3">✅ Order Paid</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 border-b"><tr><th class="text-left px-2 py-2">Toko</th><th class="text-left px-2 py-2">Produk</th><th class="text-right px-2 py-2">Omset</th></tr></thead>
+          <tbody id="cf-paid-list"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <p class="text-sm font-bold text-blue-600 mb-3">🚚 Sedang Delivery</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 border-b"><tr><th class="text-left px-2 py-2">Toko</th><th class="text-left px-2 py-2">Produk</th><th class="text-right px-2 py-2">Omset</th></tr></thead>
+          <tbody id="cf-delivery-list"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <p class="text-sm font-bold text-yellow-600 mb-3">📦 Siap Kirim</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead class="bg-slate-50 border-b"><tr><th class="text-left px-2 py-2">Toko</th><th class="text-left px-2 py-2">Produk</th><th class="text-right px-2 py-2">Omset</th></tr></thead>
+          <tbody id="cf-siapkirim-list"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transaksi Manual - INLINE FORM (fixed: was openModal) -->
+  <div class="card">
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-sm font-bold text-slate-600">Transaksi Manual (Biaya / Pemasukan Lain)</p>
+      <button class="btn btn-g btn-sm" onclick="toggleCFForm()">+ Tambah Transaksi</button>
+    </div>
+
+    <div id="cfFormBox" class="inline-form-box">
+      <p class="text-sm font-bold text-slate-700 mb-1">Form Transaksi Manual</p>
+      <p class="text-xs text-slate-400 mb-3">Tekan Enter untuk menyimpan</p>
+      <form id="fCF" class="space-y-3" onsubmit="submitCF(event)">
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="lbl lbl-req">Tanggal</label><input name="tanggal" type="date" class="inp" required/></div>
+          <div><label class="lbl">Tipe</label>
+            <select name="tipe" class="inp">
+              <option value="masuk">Uang Masuk</option>
+              <option value="keluar">Uang Keluar</option>
+            </select>
+          </div>
+        </div>
+        <div><label class="lbl lbl-req">Keterangan</label><input name="ket" class="inp" placeholder="Keterangan transaksi" required/></div>
+        <div><label class="lbl lbl-req">Jumlah (Rp)</label><input name="jumlah" type="number" class="inp" placeholder="0" min="0" required/></div>
+        <div class="flex gap-2">
+          <button type="submit" class="btn btn-g">💾 Simpan</button>
+          <button type="button" class="btn btn-gray" onclick="toggleCFForm(false)">Batal</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 border-b"><tr>
+          <th class="text-left px-4 py-2 text-xs text-slate-500">Tanggal</th>
+          <th class="text-left px-4 py-2 text-xs text-slate-500">Keterangan</th>
+          <th class="text-left px-4 py-2 text-xs text-slate-500">Tipe</th>
+          <th class="text-right px-4 py-2 text-xs text-slate-500">Jumlah</th>
+          <th class="px-4 py-2"></th>
+        </tr></thead>
+        <tbody id="cfTbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ INVENTORY ═══ -->
+<div id="inventory" class="page space-y-4">
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <input id="srchInv" type="text" placeholder="Cari produk / SKU..." class="inp" style="max-width:260px" oninput="renderInventory()"/>
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn btn-gray btn-sm" onclick="syncInventoryToSheet()">📤 Sync Inventory</button>
+      <button class="btn btn-gray btn-sm" onclick="syncRingkasanToSheet()">📊 Sync Ringkasan</button>
+      <button class="btn btn-sm" onclick="toggleInvForm()">+ Tambah Produk</button>
+    </div>
+  </div>
+
+  <!-- Inline Form (fixed: was openModal) -->
+  <div id="invFormBox" class="inline-form-box">
+    <p class="text-sm font-bold text-slate-700 mb-1" id="invFormTitle">Tambah Produk</p>
+    <p class="text-xs text-slate-400 mb-3">Tekan Enter untuk menyimpan</p>
+    <form id="fInv" class="space-y-3" onsubmit="submitInv(event)">
+      <input type="hidden" id="fInvId"/>
+      <div><label class="lbl lbl-req">Nama Produk</label><input id="fInvNama" class="inp" placeholder="Nama produk" required/></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">SKU</label><input id="fInvSku" class="inp" placeholder="SKU-001"/></div>
+        <div><label class="lbl">Kategori</label><input id="fInvKat" class="inp" placeholder="Kategori"/></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">Harga Beli</label><input id="fInvHB" type="number" class="inp" placeholder="0" min="0"/></div>
+        <div><label class="lbl">Harga Jual</label><input id="fInvHJ" type="number" class="inp" placeholder="0" min="0"/></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">Stok</label><input id="fInvStok" type="number" class="inp" placeholder="0" min="0"/></div>
+        <div><label class="lbl">Stok Minimum</label><input id="fInvStokMin" type="number" class="inp" placeholder="5" min="0"/></div>
+      </div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-g">💾 Simpan</button>
+        <button type="button" class="btn btn-gray" onclick="toggleInvForm(false)">Batal</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Total Produk</p><p class="text-2xl font-bold text-slate-800 mt-1" id="inv-total">0</p></div>
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Total Stok</p><p class="text-2xl font-bold text-slate-800 mt-1" id="inv-stok">0</p></div>
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Nilai Stok</p><p class="text-2xl font-bold text-slate-800 mt-1" id="inv-nilai">Rp 0</p></div>
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Stok Menipis</p><p class="text-2xl font-bold text-red-500 mt-1" id="inv-low">0</p></div>
+  </div>
+
+  <div class="card p-0 overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-slate-50 border-b">
+          <tr>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Nama Produk</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">SKU</th>
+            <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Kategori</th>
+            <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">H. Beli</th>
+            <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">H. Jual</th>
+            <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">Stok</th>
+            <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">Nilai Stok</th>
+            <th class="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody id="invTbody">
+          <tr><td colspan="8" class="text-center py-10 text-slate-400">Belum ada produk. Klik Tambah Produk.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ TOKO ═══ -->
+<div id="toko" class="page space-y-4">
+  <div class="flex items-center justify-between">
+    <p class="text-sm text-slate-500">Kelola toko/channel penjualan Anda</p>
+    <button class="btn btn-sm" onclick="toggleTokoForm()">+ Tambah Toko</button>
+  </div>
+
+  <!-- Inline Form (fixed: was openModal) -->
+  <div id="tokoFormBox" class="inline-form-box">
+    <p class="text-sm font-bold text-slate-700 mb-1" id="tokoFormTitle">Tambah Toko</p>
+    <p class="text-xs text-slate-400 mb-3">Tekan Enter untuk menyimpan</p>
+    <form id="fToko" class="space-y-3" onsubmit="submitToko(event)">
+      <input type="hidden" id="fTokoId"/>
+      <div><label class="lbl lbl-req">Nama Toko</label><input id="fTokoNama" class="inp" placeholder="Shopee Official, TikTok Shop..." required/></div>
+      <div><label class="lbl">Platform</label>
+        <select id="fTokoPlatform" class="inp">
+          <option>Shopee</option>
+          <option>TikTok Shop</option>
+          <option>Lazada</option>
+          <option>Tokopedia</option>
+          <option>Instagram</option>
+          <option>WhatsApp</option>
+          <option>Offline / Langsung</option>
+          <option>Lainnya</option>
+        </select>
+      </div>
+      <div><label class="lbl">Keterangan</label><input id="fTokoKet" class="inp" placeholder="Keterangan tambahan (opsional)"/></div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-g">💾 Simpan Toko</button>
+        <button type="button" class="btn btn-gray" onclick="toggleTokoForm(false)">Batal</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="tokoList">
+    <div class="card col-span-4 empty-state">
+      <div class="icon">🏪</div>
+      <p>Belum ada toko/channel.</p>
+      <p class="hint">Klik <strong>+ Tambah Toko</strong> untuk mulai mengelola channel penjualan.</p>
+    </div>
+  </div>
+
+  <div class="card p-0 overflow-hidden">
+    <div class="px-4 py-3 border-b bg-slate-50">
+      <p class="text-sm font-bold text-slate-600">Performa Penjualan per Toko</p>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 border-b">
+        <tr>
+          <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500">Toko / Channel</th>
+          <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500">Omset</th>
+          <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500">Order</th>
+          <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500">Avg Order</th>
+          <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500">Share</th>
+        </tr>
+      </thead>
+      <tbody id="tokoTbody">
+        <tr><td colspan="5" class="text-center py-8 text-slate-400">Belum ada data</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ BIAYA OPERASIONAL ═══ -->
+<div id="biaya" class="page space-y-4">
+  <div class="flex items-center justify-between flex-wrap gap-3">
+    <div class="grid grid-cols-2 gap-3">
+      <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Total Biaya</p><p class="text-2xl font-bold text-red-500 mt-1" id="biaya-total">Rp 0</p></div>
+      <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Terbesar</p><p class="text-sm font-bold text-slate-800 mt-1" id="biaya-top">-</p></div>
+    </div>
+    <button class="btn btn-sm" onclick="toggleBiayaForm()">+ Tambah Biaya</button>
+  </div>
+
+  <!-- Inline Form (fixed: was openModal) -->
+  <div id="biayaFormBox" class="inline-form-box">
+    <p class="text-sm font-bold text-slate-700 mb-1">Tambah Biaya Operasional</p>
+    <p class="text-xs text-slate-400 mb-3">Tekan Enter untuk menyimpan</p>
+    <form id="fBiaya" class="space-y-3" onsubmit="submitBiaya(event)">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl lbl-req">Tanggal</label><input name="tanggal" type="date" class="inp" required/></div>
+        <div><label class="lbl">Kategori</label>
+          <select name="kategori" class="inp">
+            <option>Iklan</option>
+            <option>Komisi</option>
+            <option>Platform</option>
+            <option>Gaji</option>
+            <option>Sewa</option>
+            <option>Utilitas</option>
+            <option>Lainnya</option>
+          </select>
+        </div>
+      </div>
+      <div><label class="lbl lbl-req">Keterangan</label><input name="ket" class="inp" placeholder="Detail biaya" required/></div>
+      <div><label class="lbl lbl-req">Jumlah (Rp)</label><input name="jumlah" type="number" class="inp" placeholder="0" min="0" required/></div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-g">💾 Simpan</button>
+        <button type="button" class="btn btn-gray" onclick="toggleBiayaForm(false)">Batal</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card p-0 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 border-b">
+        <tr>
+          <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500">Tanggal</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500">Kategori</th>
+          <th class="text-left px-5 py-3 text-xs font-semibold text-slate-500">Keterangan</th>
+          <th class="text-right px-5 py-3 text-xs font-semibold text-slate-500">Jumlah</th>
+          <th class="px-5 py-3"></th>
+        </tr>
+      </thead>
+      <tbody id="biayaTbody">
+        <tr><td colspan="5" class="text-center py-8 text-slate-400">Belum ada data biaya</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ AI INSIGHT ═══ -->
+<div id="ai" class="page space-y-4">
+  <div class="card bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200">
+    <div class="flex items-center gap-3">
+      <span class="text-4xl">🤖</span>
+      <div>
+        <p class="font-bold text-slate-800 text-lg">Analisis Bisnis Otomatis</p>
+        <p class="text-sm text-slate-500">Berdasarkan data order dan cashflow tersimpan</p>
+      </div>
+    </div>
+  </div>
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="card"><p class="text-sm font-bold text-slate-700 mb-3">📈 Performa Penjualan</p><div id="ai-performa" class="space-y-2 text-sm text-slate-400">Belum ada data</div></div>
+    <div class="card"><p class="text-sm font-bold text-slate-700 mb-3">💡 Rekomendasi</p><div id="ai-rek" class="space-y-2 text-slate-400 text-sm">Belum ada data</div></div>
+    <div class="card"><p class="text-sm font-bold text-slate-700 mb-3">🏆 Top 5 Produk</p><div id="ai-prod" class="space-y-2 text-sm text-slate-400">Belum ada data</div></div>
+    <div class="card"><p class="text-sm font-bold text-slate-700 mb-3">🏪 Performa Channel</p><div id="ai-chan" class="space-y-2 text-sm text-slate-400">Belum ada data</div></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ LAPORAN ═══ -->
+<div id="laporan" class="page space-y-4">
+  <div class="flex items-center gap-3 flex-wrap">
+    <select id="lapBu" class="inp" style="max-width:160px" onchange="renderLaporan()"><option value="">Semua Bulan</option></select>
+    <select id="lapCh" class="inp" style="max-width:160px" onchange="renderLaporan()"><option value="">Semua Toko</option></select>
+    <button class="btn btn-g btn-sm" onclick="exportCSV()">⬇ Export CSV</button>
+  </div>
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3" id="lapStats"></div>
+  <div class="card"><p class="text-sm font-bold text-slate-600 mb-4">Trend Omset & Profit</p><canvas id="lapChart" height="80"></canvas></div>
+  <div class="card p-0 overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-slate-50 border-b">
+        <tr>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Tanggal</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Toko</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Produk</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Varian</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">Qty</th>
+          <th class="text-right px-4 py-3 text-xs font-semibold text-slate-500">Omset</th>
+          <th class="text-left px-4 py-3 text-xs font-semibold text-slate-500">Status</th>
+        </tr>
+      </thead>
+      <tbody id="lapTbody">
+        <tr><td colspan="7" class="text-center py-8 text-slate-400">Belum ada data</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ SETTINGS ═══ -->
+<div id="settings" class="page space-y-4 max-w-2xl">
+  <div class="card bg-blue-50 border-blue-200">
+    <p class="text-sm font-bold text-blue-800 mb-1">💡 Panduan Pengaturan</p>
+    <ul class="text-xs text-blue-700 space-y-1 list-disc list-inside">
+      <li>Isi <strong>Profil Bisnis</strong> agar nama bisnis tampil di sidebar</li>
+      <li>Isi <strong>Google Sheets URL</strong> untuk sinkronisasi data otomatis</li>
+      <li>Gunakan <strong>Export JSON</strong> untuk backup data secara berkala</li>
+      <li>Semua data tersimpan di browser — jangan hapus cache sembarangan</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <p class="text-sm font-bold text-slate-700 mb-4">Profil Bisnis</p>
+    <div class="space-y-3">
+      <div><label class="lbl">Nama Bisnis</label><input id="set-nama" class="inp" placeholder="Nama bisnis"/></div>
+      <div><label class="lbl">Pemilik</label><input id="set-owner" class="inp" placeholder="Nama pemilik"/></div>
+      <div><label class="lbl">No. Telepon</label><input id="set-telp" class="inp" placeholder="08xxxxxxxxxx"/></div>
+      <div><label class="lbl">Alamat</label><input id="set-alamat" class="inp" placeholder="Alamat bisnis"/></div>
+    </div>
+    <button class="btn mt-4" onclick="saveSettings()">💾 Simpan Pengaturan</button>
+  </div>
+
+  <div class="card">
+    <p class="text-sm font-bold text-slate-700 mb-1">🔗 Google Sheets Integration</p>
+    <p class="text-xs text-slate-400 mb-4">Sinkronkan data order ke Google Sheets via Apps Script Web App. Deploy script sebagai Web App dengan akses "Anyone".</p>
+    <div class="space-y-3">
+      <div><label class="lbl">Apps Script Web App URL</label><input id="set-gsurl" class="inp" placeholder="https://script.google.com/macros/s/xxxxx/exec"/></div>
+      <div class="flex items-center gap-3">
+        <label class="lbl mb-0">Auto Sync saat Input Order</label>
+        <label class="relative inline-flex items-center cursor-pointer">
+          <input type="checkbox" id="set-gssync" class="sr-only peer"/>
+          <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+        </label>
+      </div>
+      <div class="flex gap-2 items-center">
+        <button class="btn btn-gray btn-sm" onclick="testGS()">🔌 Test Koneksi</button>
+        <p class="text-xs text-slate-400" id="gs-status">Belum diuji</p>
+      </div>
+    </div>
+    <button class="btn mt-3" onclick="saveGS()">💾 Simpan Koneksi</button>
+  </div>
+
+  <div class="card">
+    <p class="text-sm font-bold text-slate-700 mb-2">🗄️ Data Management</p>
+    <p class="text-xs text-slate-400 mb-3">Semua data tersimpan di browser (localStorage). Export JSON secara rutin sebagai backup.</p>
+    <div class="flex gap-2 flex-wrap">
+      <button class="btn btn-g btn-sm" onclick="exportAll()">⬇ Export JSON</button>
+      <button class="btn btn-gray btn-sm" onclick="importAll()">⬆ Import JSON</button>
+      <button class="btn btn-r btn-sm" onclick="clearAll()">🗑 Hapus Semua Data</button>
+      <input type="file" id="importFile" accept=".json" class="hidden" onchange="doImport(event)"/>
+    </div>
+  </div>
+</div>
+
+  </main>
+</div><!-- end main wrapper -->
+
+<!-- ═══════════════════════════════════════════════════════ MODAL: INPUT ORDER ═══ -->
+<div id="mOrder" class="modal-bg">
+  <div class="modal" style="max-width:640px">
+    <div class="flex justify-between items-center mb-4">
+      <h3 class="font-bold text-slate-800 text-lg">➕ Input Order</h3>
+      <button onclick="closeModal('mOrder')" class="text-slate-400 hover:text-slate-600 text-xl font-bold leading-none">✕</button>
+    </div>
+    <form id="fOrder" class="space-y-3" onsubmit="submitOrder(event)">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl lbl-req">Tanggal</label><input name="tanggal" type="date" class="inp" required/></div>
+        <div><label class="lbl lbl-req">Toko</label>
+          <select name="toko" class="inp" id="tokoSelect">
+            <option value="">-- Pilih Toko --</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="lbl">No. Resi</label><input name="no_resi" class="inp" placeholder="Nomor resi pengiriman"/></div>
+        <div><label class="lbl lbl-req">Nama Produk</label>
+          <input name="product" class="inp" placeholder="Nama produk" list="produkSuggest" required oninput="calcOrder()"/>
+          <datalist id="produkSuggest"></datalist>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="lbl">Varian</label><input name="varian" class="inp" placeholder="Warna/Ukuran"/></div>
+        <div><label class="lbl lbl-req">Qty</label><input name="qty" type="number" value="1" min="1" class="inp" required oninput="calcOrder()"/></div>
+        <div><label class="lbl lbl-req">Harga Jual</label><input name="harga_jual" type="number" placeholder="0" min="0" class="inp" required oninput="calcOrder()"/></div>
+      </div>
+
+      <div class="bg-slate-50 rounded-lg p-3">
+        <p class="text-xs font-bold text-slate-500 uppercase mb-2">Biaya Marketplace</p>
+        <div class="grid grid-cols-3 gap-3">
+          <div><label class="lbl">Fee MP (Rp)</label><input name="fee_mp" type="number" value="0" min="0" class="inp" oninput="calcOrder()"/></div>
+          <div><label class="lbl">Biaya Program</label><input name="biaya_program" type="number" value="0" min="0" class="inp" oninput="calcOrder()"/></div>
+          <div><label class="lbl">Premi</label><input name="premi" type="number" value="0" min="0" class="inp" oninput="calcOrder()"/></div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mt-2">
+          <div><label class="lbl">Pre-Order</label><input name="pre_order" type="number" value="0" min="0" class="inp" oninput="calcOrder()"/></div>
+          <div><label class="lbl">Voucher</label><input name="voucher" type="number" value="0" min="0" class="inp" oninput="calcOrder()"/></div>
+          <div><label class="lbl">Gratis Ongkir</label><input name="gratis_ongkir" type="number" value="0" min="0" class="inp" oninput="calcOrder()"/></div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 mt-2">
+          <div><label class="lbl">Promo Xtra</label><input name="promo_xtra" type="number" value="0" min="0" class="inp" oninput="calcOrder()"/></div>
+          <div><label class="lbl">Biaya Pemasaran</label><input name="biaya_pemasaran" type="number" value="0" min="0" class="inp" oninput="calcOrder()"/></div>
+          <div><label class="lbl">Biaya Affiliate</label><input name="biaya_affiliate" type="number" value="0" min="0" class="inp" oninput="calcOrder()"/></div>
+        </div>
+      </div>
+
+      <div><label class="lbl">Status</label>
+        <select name="status" class="inp">
+          <option>Siap Kirim</option>
+          <option>Delivery</option>
+          <option>Paid</option>
+          <option>Batal</option>
+        </select>
+      </div>
+
+      <div class="bg-slate-900 text-white rounded-xl px-4 py-3 grid grid-cols-2 gap-3">
+        <div><p class="text-xs text-slate-400">OMSET (Qty × Harga)</p><p class="text-xl font-bold" id="oOmset">Rp 0</p></div>
+        <div><p class="text-xs text-slate-400">TOTAL BIAYA MP</p><p class="text-xl font-bold text-red-400" id="oBiayaMP">Rp 0</p></div>
+      </div>
+
+      <button type="submit" class="btn w-full py-3">💾 Simpan Order</button>
+    </form>
+    <div id="oNotif" class="hidden mt-2 p-3 rounded-lg text-sm font-medium"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// DB HELPERS
+// ═══════════════════════════════════════════════════════════════════════
+// Supabase client
+const _SB = window.supabase.createClient(
+  'https://mtfvagkdjutibdvftrfl.supabase.co',
+  'sb_publishable_CvMCsUAQbk7pG0fc0mrb7Q_Xyxa8C3y'
+);
+
+const DB = {
+  // localStorage sebagai cache lokal
+  get: k => JSON.parse(localStorage.getItem(k) || '[]'),
+  set: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+  getObj: k => JSON.parse(localStorage.getItem(k) || '{}'),
+  setObj: (k, v) => localStorage.setItem(k, JSON.stringify(v)),
+
+  // Load dari Supabase ke localStorage
+  async load(table) {
+    try {
+      const { data, error } = await _SB.from(table).select('*').order('created_at', { ascending: false });
+      if (data && !error) {
+        localStorage.setItem(table, JSON.stringify(data));
+        return data;
+      }
+    } catch(e) { console.log('Load error:', e); }
+    return JSON.parse(localStorage.getItem(table) || '[]');
+  },
+
+  // Simpan ke Supabase
+  async save(table, item) {
+    try { await _SB.from(table).upsert(item); } catch(e) { console.log('Save error:', e); }
+  },
+
+  // Hapus dari Supabase
+  async remove(table, id) {
+    try { await _SB.from(table).delete().eq('id', id); } catch(e) { console.log('Remove error:', e); }
+  }
+};
+
+const fmt = n => 'Rp ' + Number(n || 0).toLocaleString('id-ID');
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const today = () => new Date().toISOString().slice(0, 10);
+
+const TITLES = {
+  dashboard: 'Dashboard', orders: 'Orders', cashflow: 'Cashflow',
+  inventory: 'Inventory', toko: 'Toko / Channel', biaya: 'Biaya Operasional',
+  ai: 'AI Insight', laporan: 'Laporan', settings: 'Settings'
+};
+
+// ═══════════════════════════════════════════════════════════════════════
+// TOAST NOTIFICATION (global)
+// ═══════════════════════════════════════════════════════════════════════
+function toast(msg, type = 'success', duration = 3500) {
+  document.querySelectorAll('.toast').forEach(t => t.remove());
+  const el = document.createElement('div');
+  el.className = 'toast toast-' + type;
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => {
+    el.style.opacity = '0';
+    el.style.transition = 'opacity .3s';
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════
+function go(e, id) {
+  if (e) e.preventDefault();
+  document.querySelectorAll('.modal-bg.open').forEach(m => m.classList.remove('open'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById(id);
+  if (pg) pg.classList.add('active');
+  if (e && e.currentTarget) {
+    e.currentTarget.classList.add('active');
+  } else {
+    document.querySelectorAll('.nav-item').forEach(n => {
+      if (n.getAttribute('onclick') && n.getAttribute('onclick').includes("'" + id + "'"))
+        n.classList.add('active');
+    });
+  }
+  document.getElementById('pageTitle').textContent = TITLES[id] || id;
+  if (id === 'dashboard')  renderDashboard();
+  if (id === 'orders')     renderOrders();
+  if (id === 'cashflow')   renderCashflow();
+  if (id === 'inventory')  renderInventory();
+  if (id === 'toko')       renderToko();
+  if (id === 'biaya')      renderBiaya();
+  if (id === 'ai')         renderAI();
+  if (id === 'laporan')    renderLaporan();
+  if (id === 'settings')   loadSettings();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MODAL (only for mOrder)
+// ═══════════════════════════════════════════════════════════════════════
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  if (id === 'mOrder') {
+    updateTokoSelect();
+    updateProdukSuggest();
+    const f = document.getElementById('fOrder');
+    // Always set today's date when opening
+    if (f && f.tanggal) f.tanggal.value = today();
+    calcOrder();
+  }
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+document.addEventListener('click', e => {
+  if (e.target.classList.contains('modal-bg')) e.target.classList.remove('open');
+}, true);
+
+// ═══════════════════════════════════════════════════════════════════════
+// INLINE FORM TOGGLES
+// ═══════════════════════════════════════════════════════════════════════
+function toggleCFForm(show) {
+  const box = document.getElementById('cfFormBox');
+  if (show === false) {
+    box.style.display = 'none';
+    document.getElementById('fCF').reset();
+    return;
+  }
+  const isOpen = box.style.display === 'block';
+  box.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    // Auto-set today's date
+    const f = document.getElementById('fCF');
+    const tanggalInput = f.querySelector('[name="tanggal"]');
+    if (tanggalInput) tanggalInput.value = today();
+  }
+}
+
+function toggleInvForm(show) {
+  const box = document.getElementById('invFormBox');
+  if (show === false) {
+    box.style.display = 'none';
+    resetInvForm();
+    return;
+  }
+  const isOpen = box.style.display === 'block';
+  box.style.display = isOpen ? 'none' : 'block';
+}
+
+function resetInvForm() {
+  document.getElementById('fInvId').value = '';
+  document.getElementById('fInvNama').value = '';
+  document.getElementById('fInvSku').value = '';
+  document.getElementById('fInvKat').value = '';
+  document.getElementById('fInvHB').value = '';
+  document.getElementById('fInvHJ').value = '';
+  document.getElementById('fInvStok').value = '';
+  document.getElementById('fInvStokMin').value = '';
+  document.getElementById('invFormTitle').textContent = 'Tambah Produk';
+}
+
+function toggleTokoForm(show) {
+  const box = document.getElementById('tokoFormBox');
+  if (show === false) {
+    box.style.display = 'none';
+    resetTokoForm();
+    return;
+  }
+  const isOpen = box.style.display === 'block';
+  box.style.display = isOpen ? 'none' : 'block';
+}
+
+function resetTokoForm() {
+  document.getElementById('fTokoId').value = '';
+  document.getElementById('fTokoNama').value = '';
+  document.getElementById('fTokoPlatform').value = 'Shopee';
+  document.getElementById('fTokoKet').value = '';
+  document.getElementById('tokoFormTitle').textContent = 'Tambah Toko';
+}
+
+function toggleBiayaForm(show) {
+  const box = document.getElementById('biayaFormBox');
+  if (show === false) {
+    box.style.display = 'none';
+    document.getElementById('fBiaya').reset();
+    return;
+  }
+  const isOpen = box.style.display === 'block';
+  box.style.display = isOpen ? 'none' : 'block';
+  if (!isOpen) {
+    const f = document.getElementById('fBiaya');
+    const tanggalInput = f.querySelector('[name="tanggal"]');
+    if (tanggalInput) tanggalInput.value = today();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// CLOCK
+// ═══════════════════════════════════════════════════════════════════════
+function updateClock() {
+  const d = new Date();
+  const dateEl = document.getElementById('sDate');
+  const timeEl = document.getElementById('sTime');
+  const hDateEl = document.getElementById('hDate');
+  if (dateEl) dateEl.textContent = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  if (timeEl) timeEl.textContent = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+  if (hDateEl) hDateEl.textContent = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+updateClock();
+setInterval(updateClock, 1000);
+
+// ═══════════════════════════════════════════════════════════════════════
+// SETTINGS APPLY
+// ═══════════════════════════════════════════════════════════════════════
+function applySettings() {
+  const s = DB.getObj('settings');
+  if (s.nama) document.getElementById('bizName').textContent = s.nama;
+  if (s.owner) {
+    document.getElementById('ownerName').textContent = s.owner;
+    document.getElementById('ownerAvatar').textContent = s.owner[0].toUpperCase();
+  }
+}
+applySettings();
+
+// ═══════════════════════════════════════════════════════════════════════
+// NAV BADGES
+// ═══════════════════════════════════════════════════════════════════════
+function updateNavBadges() {
+  const orders = DB.get('orders');
+  const inv = DB.get('inventory');
+  const tokos = DB.get('tokos');
+  const nbOrders = document.getElementById('nb-orders');
+  const nbInv = document.getElementById('nb-inv');
+  const nbToko = document.getElementById('nb-toko');
+  if (nbOrders) nbOrders.textContent = orders.length;
+  if (nbInv) nbInv.textContent = inv.length;
+  if (nbToko) nbToko.textContent = tokos.length;
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════════════════
+let dashChartInst = null;
+
+function renderDashboard() {
+  const orders = DB.get('orders');
+  const activeOrders = orders.filter(o => o.status !== 'Batal');
+  const biaya = DB.get('biaya');
+  const todayStr = today();
+
+  // Quick start guide
+  const qs = document.getElementById('quickStart');
+  if (qs) qs.style.display = orders.length === 0 ? 'block' : 'none';
+
+  const totalOmset = activeOrders.reduce((s, o) => s + (o.omset || 0), 0);
+  const totalBiaya = biaya.reduce((s, b) => s + b.jumlah, 0);
+  const saldo = totalOmset - totalBiaya;
+
+  document.getElementById('d-omset').textContent = fmt(totalOmset);
+  document.getElementById('d-profit').textContent = fmt(totalOmset * 0.2);
+  document.getElementById('d-pengeluaran').textContent = fmt(totalBiaya);
+  document.getElementById('d-saldo').textContent = fmt(saldo);
+
+  // Today
+  const todayOrders = activeOrders.filter(o => (o.tanggal || o.created_at || '').startsWith(todayStr));
+  const todayBiaya = biaya.filter(b => b.tanggal === todayStr).reduce((s, b) => s + b.jumlah, 0);
+  document.getElementById('today-omset').textContent = fmt(todayOrders.reduce((s, o) => s + (o.omset || 0), 0));
+  document.getElementById('today-order').textContent = todayOrders.length;
+  document.getElementById('today-profit').textContent = fmt(todayOrders.reduce((s, o) => s + (o.omset || 0), 0) * 0.2);
+  document.getElementById('today-biaya').textContent = fmt(todayBiaya);
+
+  // Status counts
+  document.getElementById('st-siapkirim').textContent = orders.filter(o => o.status === 'Siap Kirim').length;
+  document.getElementById('st-delivery').textContent = orders.filter(o => o.status === 'Delivery').length;
+  document.getElementById('st-paid').textContent = orders.filter(o => o.status === 'Paid').length;
+  document.getElementById('st-batal').textContent = orders.filter(o => o.status === 'Batal').length;
+
+  // Top 3 products
+  const pm = {};
+  activeOrders.forEach(o => { pm[o.product] = (pm[o.product] || 0) + (o.qty || 1); });
+  const top3 = Object.entries(pm).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  document.getElementById('d-top3').innerHTML = top3.length
+    ? top3.map((p, i) => `<div class="flex justify-between"><span>${['🥇','🥈','🥉'][i]} ${p[0]}</span><span class="font-bold text-blue-600">${p[1]} unit</span></div>`).join('')
+    : '<span class="text-slate-400 text-xs">Belum ada data</span>';
+
+  // Toko performance
+  const tm = {};
+  activeOrders.forEach(o => { const t = o.toko || 'Langsung'; tm[t] = (tm[t] || 0) + (o.omset || 0); });
+  const topT = Object.entries(tm).sort((a, b) => b[1] - a[1]).slice(0, 4);
+  document.getElementById('d-toko-perf').innerHTML = topT.length
+    ? topT.map(t => `<div class="flex justify-between"><span class="truncate">${t[0]}</span><span class="font-bold ml-2">${fmt(t[1])}</span></div>`).join('')
+    : '<span class="text-slate-400 text-xs">Belum ada data</span>';
+
+  // AI panel
+  const aiTop = top3[0]?.[0] || '-';
+  document.getElementById('ai-top').textContent = aiTop + (top3[0] ? ` (${top3[0][1]} unit)` : '');
+  document.getElementById('ai-update').textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  const se = document.getElementById('ai-status');
+  if (orders.length === 0) { se.textContent = 'MULAI INPUT'; se.className = 'text-xl font-black text-blue-600'; }
+  else if (totalBiaya > totalOmset * 0.5) { se.textContent = 'PERLU EVALUASI'; se.className = 'text-xl font-black text-red-600'; }
+  else if (orders.length >= 20) { se.textContent = 'BAGUS! 🔥'; se.className = 'text-xl font-black text-green-600'; }
+  else { se.textContent = 'BERKEMBANG'; se.className = 'text-xl font-black text-orange-500'; }
+  const tips = [];
+  if (top3[0]) tips.push(`⚡ Pastikan stok <b>${top3[0][0]}</b> selalu tersedia`);
+  if (totalBiaya > totalOmset * 0.3) tips.push('⚠️ Biaya operasional cukup tinggi, evaluasi pengeluaran');
+  if (orders.length > 0 && todayOrders.length === 0) tips.push('📢 Belum ada order hari ini');
+  document.getElementById('ai-tips').innerHTML = tips.map(t => `<p class="text-xs text-slate-600">${t}</p>`).join('');
+
+  // 14-day chart
+  const byDay = {};
+  activeOrders.forEach(o => {
+    const d = (o.tanggal || o.created_at || '').slice(0, 10);
+    if (d) byDay[d] = (byDay[d] || 0) + (o.omset || 0);
+  });
+  const days14 = [];
+  for (let i = 13; i >= 0; i--) {
+    const dt = new Date(); dt.setDate(dt.getDate() - i);
+    days14.push(dt.toISOString().slice(0, 10));
+  }
+  const ctx = document.getElementById('dashChart')?.getContext('2d');
+  if (ctx) {
+    if (dashChartInst) dashChartInst.destroy();
+    dashChartInst = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: days14.map(d => d.slice(5)),
+        datasets: [{
+          label: 'Omset',
+          data: days14.map(d => byDay[d] || 0),
+          borderColor: '#22c55e',
+          backgroundColor: 'rgba(34,197,94,.1)',
+          tension: 0.4, fill: true, pointRadius: 3
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { ticks: { callback: v => fmt(v) }, grid: { color: '#f1f5f9' } },
+          x: { grid: { display: false } }
+        }
+      }
+    });
+  }
+
+  updateNavBadges();
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// ORDERS
+// ═══════════════════════════════════════════════════════════════════════
+function updateTokoSelect() {
+  const tokos = DB.get('tokos');
+  const sel = document.getElementById('tokoSelect');
+  sel.innerHTML = '<option value="">-- Pilih Toko --</option>' +
+    tokos.map(t => `<option value="${t.nama}">${t.nama} (${t.platform})</option>`).join('');
+}
+
+function updateProdukSuggest() {
+  const inv = DB.get('inventory');
+  document.getElementById('produkSuggest').innerHTML = inv.map(p => `<option value="${p.nama}">`).join('');
+}
+
+function calcOrder() {
+  const f = document.getElementById('fOrder');
+  if (!f) return;
+  const qty = +f.qty?.value || 0;
+  const harga = +f.harga_jual?.value || 0;
+  const omset = qty * harga;
+  const totalBiayaMP =
+    (+f.fee_mp?.value || 0) + (+f.biaya_program?.value || 0) + (+f.premi?.value || 0) +
+    (+f.pre_order?.value || 0) + (+f.voucher?.value || 0) + (+f.gratis_ongkir?.value || 0) +
+    (+f.promo_xtra?.value || 0) + (+f.biaya_pemasaran?.value || 0) + (+f.biaya_affiliate?.value || 0);
+  document.getElementById('oOmset').textContent = fmt(omset);
+  document.getElementById('oBiayaMP').textContent = fmt(totalBiayaMP);
+}
+
+function showONotif(msg, type) {
+  toast(msg, type === 's' ? 'success' : 'error');
+  const n = document.getElementById('oNotif');
+  if (!n) return;
+  n.className = 'mt-2 p-3 rounded-lg text-sm font-medium ' +
+    (type === 's' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800');
+  n.textContent = msg;
+  n.classList.remove('hidden');
+  if (type === 's') setTimeout(() => { n.classList.add('hidden'); closeModal('mOrder'); }, 2000);
+}
+
+function submitOrder(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const qty = +fd.get('qty');
+  const harga = +fd.get('harga_jual');
+  const omset = qty * harga;
+
+  if (!fd.get('toko')) return showONotif('Nama toko wajib dipilih', 'e');
+  if (!fd.get('product').trim()) return showONotif('Nama produk wajib diisi', 'e');
+  if (harga <= 0) return showONotif('Harga jual harus lebih dari 0', 'e');
+
+  const totalBiayaMP =
+    (+fd.get('fee_mp') || 0) + (+fd.get('biaya_program') || 0) + (+fd.get('premi') || 0) +
+    (+fd.get('pre_order') || 0) + (+fd.get('voucher') || 0) + (+fd.get('gratis_ongkir') || 0) +
+    (+fd.get('promo_xtra') || 0) + (+fd.get('biaya_pemasaran') || 0) + (+fd.get('biaya_affiliate') || 0);
+
+  const order = {
+    id: uid(),
+    created_at: new Date().toISOString(),
+    tanggal: fd.get('tanggal') || today(),
+    toko: fd.get('toko'),
+    no_resi: fd.get('no_resi').trim(),
+    product: fd.get('product').trim(),
+    varian: fd.get('varian').trim(),
+    qty: qty,
+    harga_jual: harga,
+    omset: omset,
+    fee_mp: +fd.get('fee_mp') || 0,
+    biaya_program: +fd.get('biaya_program') || 0,
+    premi: +fd.get('premi') || 0,
+    pre_order: +fd.get('pre_order') || 0,
+    voucher: +fd.get('voucher') || 0,
+    gratis_ongkir: +fd.get('gratis_ongkir') || 0,
+    promo_xtra: +fd.get('promo_xtra') || 0,
+    biaya_pemasaran: +fd.get('biaya_pemasaran') || 0,
+    biaya_affiliate: +fd.get('biaya_affiliate') || 0,
+    total_biaya_mp: totalBiayaMP,
+    total: omset,
+    status: fd.get('status') || 'Siap Kirim'
+  };
+
+  const orders = DB.get('orders');
+  orders.unshift(order);
+  DB.set('orders', orders);
+  DB.save('orders', order); // sync ke Supabase
+
+  // Proper form reset
+  e.target.reset();
+  e.target.qty.value = 1;
+  document.getElementById('oOmset').textContent = 'Rp 0';
+  document.getElementById('oBiayaMP').textContent = 'Rp 0';
+
+  showONotif('✅ Order disimpan! ID: ' + order.id.slice(-6).toUpperCase(), 's');
+  renderOrders();
+  renderDashboard();
+
+  const s = DB.getObj('settings');
+  if (s.gsUrl && s.gsSync) syncGS(order);
+}
+
+function renderOrders() {
+  const orders = DB.get('orders');
+  const tokos = DB.get('tokos');
+  const q = (document.getElementById('srchOrder')?.value || '').toLowerCase();
+  const fs = document.getElementById('filterStatus')?.value || '';
+
+  // Show/hide no-toko warning
+  const warn = document.getElementById('noTokoWarn');
+  if (warn) warn.classList.toggle('hidden', tokos.length > 0);
+
+  const filtered = orders.filter(o =>
+    (!q || (o.product || '').toLowerCase().includes(q) ||
+           (o.toko || '').toLowerCase().includes(q) ||
+           (o.no_resi || '').toLowerCase().includes(q)) &&
+    (!fs || o.status === fs)
+  );
+
+  const statusBadge = s => {
+    const map = {
+      'Siap Kirim': 'bg-yellow-100 text-yellow-700',
+      'Delivery':   'bg-blue-100 text-blue-700',
+      'Paid':       'bg-green-100 text-green-700',
+      'Batal':      'bg-red-100 text-red-700'
+    };
+    return `<span class="text-xs px-2 py-0.5 rounded-full font-semibold ${map[s] || 'bg-slate-100 text-slate-700'}">${s}</span>`;
+  };
+
+  const tbody = document.getElementById('orderTbody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = orders.length === 0
+      ? `<tr><td colspan="10"><div class="empty-state"><div class="icon">🛒</div><p>Belum ada order.</p><p class="hint">Klik <strong>➕ Input Order</strong> untuk mulai mencatat penjualan.</p></div></td></tr>`
+      : `<tr><td colspan="10" class="text-center py-10 text-slate-400">Tidak ada order yang cocok dengan filter.</td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(o => `
+      <tr class="border-t hover:bg-slate-50">
+        <td class="px-4 py-3 text-xs text-slate-500">${o.tanggal || o.created_at?.slice(0,10) || '-'}</td>
+        <td class="px-4 py-3 font-medium text-sm">${o.toko || '-'}</td>
+        <td class="px-4 py-3 text-xs text-slate-500">${o.no_resi || '-'}</td>
+        <td class="px-4 py-3">${o.product}</td>
+        <td class="px-4 py-3 text-xs text-slate-500">${o.varian || '-'}</td>
+        <td class="px-4 py-3 text-right">${o.qty}</td>
+        <td class="px-4 py-3 text-right">${fmt(o.harga_jual)}</td>
+        <td class="px-4 py-3 text-right font-bold">${fmt(o.omset)}</td>
+        <td class="px-4 py-3">
+          <select class="text-xs border rounded px-1 py-0.5 bg-white" onchange="updateOrderStatus('${o.id}',this.value)">
+            ${['Siap Kirim','Delivery','Paid','Batal'].map(s => `<option ${o.status===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </td>
+        <td class="px-4 py-3">
+          <button onclick="delOrder('${o.id}')" class="text-red-400 hover:text-red-600 text-sm" title="Hapus order">🗑</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('orderCount').textContent = filtered.length + ' order';
+  document.getElementById('orderGrandTotal').textContent = 'Total Omset: ' + fmt(filtered.reduce((s, o) => s + (o.omset || 0), 0));
+  updateNavBadges();
+}
+
+function updateOrderStatus(id, status) {
+  const orders = DB.get('orders');
+  const o = orders.find(x => x.id === id);
+  if (o) {
+    o.status = status;
+    DB.set('orders', orders);
+    renderDashboard();
+    toast('Status order diperbarui: ' + status);
+  }
+}
+
+function delOrder(id) {
+  if (!confirm('Hapus order ini? Tindakan tidak bisa dibatalkan.')) return;
+  DB.set('orders', DB.get('orders').filter(o => o.id !== id));
+  DB.remove('orders', id);
+  renderOrders();
+  renderDashboard();
+  toast('Order berhasil dihapus.');
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// CASHFLOW
+// ═══════════════════════════════════════════════════════════════════════
+// FIX: Use FormData consistently (form uses name attributes)
+function submitCF(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const tanggal = fd.get('tanggal');
+  const ket = fd.get('ket');
+  const tipe = fd.get('tipe');
+  const jumlah = +fd.get('jumlah');
+
+  if (!tanggal) return toast('Tanggal wajib diisi', 'error');
+  if (!ket || !ket.trim()) return toast('Keterangan wajib diisi', 'error');
+  if (!jumlah || jumlah <= 0) return toast('Jumlah harus lebih dari 0', 'error');
+
+  const cf = DB.get('cashflow');
+  cf.unshift({ id: uid(), tanggal, ket: ket.trim(), tipe, jumlah });
+  DB.set('cashflow', cf);
+  DB.save('cashflow', cf[0]);
+  toggleCFForm(false);
+  renderCashflow();
+  toast('✅ Transaksi berhasil disimpan!');
+}
+
+function renderCashflow() {
+  const orders = DB.get('orders');
+  const cf = DB.get('cashflow');
+  const biaya = DB.get('biaya');
+
+  const paid      = orders.filter(o => o.status === 'Paid');
+  const delivery  = orders.filter(o => o.status === 'Delivery');
+  const siapKirim = orders.filter(o => o.status === 'Siap Kirim');
+
+  const paidOmset      = paid.reduce((s, o) => s + (o.omset || 0), 0);
+  const deliveryOmset  = delivery.reduce((s, o) => s + (o.omset || 0), 0);
+  const siapKirimOmset = siapKirim.reduce((s, o) => s + (o.omset || 0), 0);
+
+  document.getElementById('cf-paid').textContent           = fmt(paidOmset);
+  document.getElementById('cf-paid-count').textContent     = paid.length + ' order';
+  document.getElementById('cf-delivery').textContent       = fmt(deliveryOmset);
+  document.getElementById('cf-delivery-count').textContent = delivery.length + ' order';
+  document.getElementById('cf-siapkirim').textContent      = fmt(siapKirimOmset);
+  document.getElementById('cf-siapkirim-count').textContent = siapKirim.length + ' order';
+  document.getElementById('cf-omset').textContent          = fmt(paidOmset);
+
+  const cfMasuk  = paidOmset + cf.filter(c => c.tipe === 'masuk').reduce((s, c) => s + c.jumlah, 0);
+  const cfKeluar = biaya.reduce((s, b) => s + b.jumlah, 0) + cf.filter(c => c.tipe === 'keluar').reduce((s, c) => s + c.jumlah, 0);
+  document.getElementById('cf-masuk').textContent  = fmt(cfMasuk);
+  document.getElementById('cf-keluar').textContent = fmt(cfKeluar);
+  document.getElementById('cf-net').textContent    = fmt(cfMasuk - cfKeluar);
+
+  const renderList = (items, elId) => {
+    const el = document.getElementById(elId);
+    el.innerHTML = items.length
+      ? items.slice(0, 10).map(o => `
+          <tr class="border-t hover:bg-slate-50">
+            <td class="px-2 py-1.5">${o.toko || '-'}</td>
+            <td class="px-2 py-1.5">${o.product}</td>
+            <td class="px-2 py-1.5 text-right font-semibold">${fmt(o.omset || 0)}</td>
+          </tr>`).join('')
+      : `<tr><td colspan="3" class="text-center py-4 text-slate-400 text-xs">Tidak ada data</td></tr>`;
+  };
+  renderList(paid,      'cf-paid-list');
+  renderList(delivery,  'cf-delivery-list');
+  renderList(siapKirim, 'cf-siapkirim-list');
+
+  const tbody = document.getElementById('cfTbody');
+  tbody.innerHTML = cf.length
+    ? cf.map(c => `
+        <tr class="border-t hover:bg-slate-50">
+          <td class="px-4 py-3 text-slate-500">${c.tanggal}</td>
+          <td class="px-4 py-3">${c.ket}</td>
+          <td class="px-4 py-3">
+            <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${c.tipe==='masuk'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">
+              ${c.tipe === 'masuk' ? '↑ Masuk' : '↓ Keluar'}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-right font-semibold ${c.tipe==='masuk'?'text-green-600':'text-red-500'}">${fmt(c.jumlah)}</td>
+          <td class="px-4 py-3">
+            <button onclick="delCF('${c.id}')" class="text-red-400 hover:text-red-600" title="Hapus transaksi">🗑</button>
+          </td>
+        </tr>`).join('')
+    : `<tr><td colspan="5"><div class="empty-state"><div class="icon">💰</div><p>Belum ada transaksi manual.</p><p class="hint">Klik <strong>+ Tambah Transaksi</strong> untuk mencatat pemasukan/pengeluaran lain.</p></div></td></tr>`;
+}
+
+function delCF(id) {
+  if (!confirm('Hapus transaksi ini?')) return;
+  DB.set('cashflow', DB.get('cashflow').filter(c => c.id !== id));
+  DB.remove('cashflow', id);
+  renderCashflow();
+  toast('Transaksi berhasil dihapus.');
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// INVENTORY
+// ═══════════════════════════════════════════════════════════════════════
+// FIX: submitInv reads from element IDs (consistent with form using id attributes)
+function submitInv(e) {
+  e.preventDefault();
+  const inv = DB.get('inventory');
+  const existId = document.getElementById('fInvId').value;
+  const nama = document.getElementById('fInvNama').value.trim();
+  if (!nama) return toast('Nama produk wajib diisi', 'error');
+
+  const item = {
+    id: existId || uid(),
+    nama,
+    sku: document.getElementById('fInvSku').value.trim(),
+    kategori: document.getElementById('fInvKat').value.trim(),
+    harga_beli: +document.getElementById('fInvHB').value || 0,
+    harga_jual: +document.getElementById('fInvHJ').value || 0,
+    stok: +document.getElementById('fInvStok').value || 0,
+    stok_min: +document.getElementById('fInvStokMin').value || 5
+  };
+
+  if (existId) {
+    const idx = inv.findIndex(p => p.id === existId);
+    if (idx >= 0) inv[idx] = item;
+  } else {
+    inv.push(item);
+  }
+  DB.set('inventory', inv);
+  DB.save('inventory', item);
+  toggleInvForm(false);
+  renderInventory();
+  updateProdukSuggest();
+  toast(existId ? '✅ Produk berhasil diperbarui!' : '✅ Produk berhasil ditambahkan!');
+  updateNavBadges();
+}
+
+function renderInventory() {
+  const inv = DB.get('inventory');
+  const q = (document.getElementById('srchInv')?.value || '').toLowerCase();
+  const filtered = inv.filter(p => !q || p.nama.toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
+
+  document.getElementById('inv-total').textContent = inv.length;
+  document.getElementById('inv-stok').textContent = inv.reduce((s, p) => s + p.stok, 0).toLocaleString('id-ID');
+  document.getElementById('inv-nilai').textContent = fmt(inv.reduce((s, p) => s + (p.stok * p.harga_beli), 0));
+  document.getElementById('inv-low').textContent = inv.filter(p => p.stok <= p.stok_min).length;
+
+  const tbody = document.getElementById('invTbody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = inv.length === 0
+      ? `<tr><td colspan="8"><div class="empty-state"><div class="icon">📦</div><p>Belum ada produk di inventory.</p><p class="hint">Klik <strong>+ Tambah Produk</strong> untuk mulai mengelola stok.</p></div></td></tr>`
+      : `<tr><td colspan="8" class="text-center py-10 text-slate-400">Tidak ada produk yang cocok.</td></tr>`;
+  } else {
+    tbody.innerHTML = filtered.map(p => `
+      <tr class="border-t hover:bg-slate-50 ${p.stok <= p.stok_min ? 'bg-red-50' : ''}">
+        <td class="px-4 py-3 font-medium">${p.nama}${p.stok <= p.stok_min ? ' <span class="text-xs text-red-500 font-semibold">⚠ Menipis</span>' : ''}</td>
+        <td class="px-4 py-3 text-slate-500">${p.sku || '-'}</td>
+        <td class="px-4 py-3 text-slate-500">${p.kategori || '-'}</td>
+        <td class="px-4 py-3 text-right">${fmt(p.harga_beli)}</td>
+        <td class="px-4 py-3 text-right">${fmt(p.harga_jual)}</td>
+        <td class="px-4 py-3 text-right font-bold ${p.stok <= p.stok_min ? 'text-red-500' : ''}">${p.stok}</td>
+        <td class="px-4 py-3 text-right">${fmt(p.stok * p.harga_beli)}</td>
+        <td class="px-4 py-3 flex gap-1">
+          <button onclick="editInv('${p.id}')" class="text-blue-400 hover:text-blue-600" title="Edit produk">✏</button>
+          <button onclick="delInv('${p.id}')" class="text-red-400 hover:text-red-600" title="Hapus produk">🗑</button>
+        </td>
+      </tr>`).join('');
+  }
+}
+
+function editInv(id) {
+  const p = DB.get('inventory').find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('fInvId').value = p.id;
+  document.getElementById('fInvNama').value = p.nama;
+  document.getElementById('fInvSku').value = p.sku || '';
+  document.getElementById('fInvKat').value = p.kategori || '';
+  document.getElementById('fInvHB').value = p.harga_beli;
+  document.getElementById('fInvHJ').value = p.harga_jual;
+  document.getElementById('fInvStok').value = p.stok;
+  document.getElementById('fInvStokMin').value = p.stok_min;
+  document.getElementById('invFormTitle').textContent = 'Edit Produk';
+  const box = document.getElementById('invFormBox');
+  box.style.display = 'block';
+  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function delInv(id) {
+  if (!confirm('Hapus produk ini dari inventory?')) return;
+  DB.set('inventory', DB.get('inventory').filter(p => p.id !== id));
+  DB.remove('inventory', id);
+  renderInventory();
+  updateProdukSuggest();
+  updateNavBadges();
+  toast('Produk berhasil dihapus.');
+}
+
+async function syncInventoryToSheet() {
+  const s = DB.getObj('settings');
+  if (!s.gsUrl) { toast('URL Google Sheets belum diisi di Settings', 'error'); return; }
+  const inv = DB.get('inventory');
+  try {
+    await fetch(s.gsUrl, { method: 'POST', body: JSON.stringify({ action: 'syncInventory', items: inv }) });
+    toast('Inventory berhasil disync ke Google Sheets!');
+  } catch (err) { toast('Gagal sync: ' + err.message, 'error'); }
+}
+
+async function syncRingkasanToSheet() {
+  const s = DB.getObj('settings');
+  if (!s.gsUrl) { toast('URL Google Sheets belum diisi di Settings', 'error'); return; }
+  const orders = DB.get('orders').filter(o => o.status === 'Paid');
+  const inv = DB.get('inventory');
+  const platforms = [...new Set(orders.map(o => o.toko || 'Offline'))];
+  const rows = platforms.map(p => {
+    const po = orders.filter(o => (o.toko || 'Offline') === p);
+    const omset    = po.reduce((s, o) => s + (o.omset || 0), 0);
+    const potongan = po.reduce((s, o) => s + (o.fee_mp||0) + (o.biaya_program||0) + (o.voucher||0) + (o.gratis_ongkir||0) + (o.promo_xtra||0), 0);
+    const gross    = omset - potongan;
+    const hpp      = po.reduce((s, o) => { const prod = inv.find(i => i.nama === o.product); return s + (prod ? prod.harga_beli * o.qty : 0); }, 0);
+    return { platform: p, omset, potongan, gross, hpp, grossProfit: gross - hpp };
+  });
+  const total = rows.reduce((t, r) => ({ omset: t.omset+r.omset, potongan: t.potongan+r.potongan, gross: t.gross+r.gross, hpp: t.hpp+r.hpp, grossProfit: t.grossProfit+r.grossProfit }), { omset:0, potongan:0, gross:0, hpp:0, grossProfit:0 });
+  try {
+    await fetch(s.gsUrl, { method: 'POST', body: JSON.stringify({ action: 'syncRingkasan', rows, total }) });
+    toast('Ringkasan berhasil disync ke Google Sheets!');
+  } catch (err) { toast('Gagal sync: ' + err.message, 'error'); }
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// TOKO / CHANNEL
+// ═══════════════════════════════════════════════════════════════════════
+// FIX: submitToko reads from element IDs (consistent with form using id attributes, no name attrs)
+function submitToko(e) {
+  e.preventDefault();
+  const tokos = DB.get('tokos');
+  const existId = document.getElementById('fTokoId').value;
+  const nama = document.getElementById('fTokoNama').value.trim();
+  if (!nama) return toast('Nama toko wajib diisi', 'error');
+
+  const item = {
+    id: existId || uid(),
+    nama,
+    platform: document.getElementById('fTokoPlatform').value,
+    ket: document.getElementById('fTokoKet').value.trim()
+  };
+
+  if (existId) {
+    const idx = tokos.findIndex(t => t.id === existId);
+    if (idx >= 0) tokos[idx] = item;
+  } else {
+    tokos.push(item);
+  }
+  DB.set('tokos', tokos);
+  DB.save('tokos', item);
+  toggleTokoForm(false);
+  renderToko();
+  updateNavBadges();
+  toast(existId ? '✅ Toko berhasil diperbarui!' : '✅ Toko berhasil ditambahkan!');
+}
+
+function renderToko() {
+  const tokos = DB.get('tokos');
+  const orders = DB.get('orders').filter(o => o.status !== 'Batal');
+  const totalOmset = orders.reduce((s, o) => s + (o.omset || 0), 0);
+  const colors = ['bg-orange-400','bg-pink-500','bg-blue-500','bg-green-500','bg-purple-500','bg-yellow-400','bg-red-400','bg-indigo-500'];
+
+  document.getElementById('tokoList').innerHTML = tokos.length
+    ? tokos.map((t, i) => {
+        const to = orders.filter(o => o.toko === t.nama);
+        const omset = to.reduce((s, o) => s + (o.omset || 0), 0);
+        return `<div class="card">
+          <div class="flex items-start justify-between mb-2">
+            <div class="w-8 h-8 ${colors[i % colors.length]} rounded-lg flex items-center justify-center text-white text-xs font-bold">${t.nama[0]}</div>
+            <div class="flex gap-1">
+              <button onclick="editToko('${t.id}')" class="text-blue-400 hover:text-blue-600 text-xs" title="Edit toko">✏</button>
+              <button onclick="delToko('${t.id}')" class="text-red-400 hover:text-red-600 text-xs" title="Hapus toko">🗑</button>
+            </div>
+          </div>
+          <p class="text-sm font-bold text-slate-800">${t.nama}</p>
+          <p class="text-xs text-slate-400">${t.platform}</p>
+          <p class="text-base font-bold text-blue-600 mt-1">${fmt(omset)}</p>
+          <p class="text-xs text-slate-400">${to.length} order</p>
+        </div>`;
+      }).join('')
+    : `<div class="card col-span-4"><div class="empty-state"><div class="icon">🏪</div><p>Belum ada toko/channel.</p><p class="hint">Klik <strong>+ Tambah Toko</strong> untuk mulai mengelola channel penjualan.</p></div></div>`;
+
+  const tm = {};
+  orders.forEach(o => { const t = o.toko || 'Langsung'; tm[t] = (tm[t] || 0) + (o.omset || 0); });
+  const data = Object.entries(tm).sort((a, b) => b[1] - a[1]);
+  document.getElementById('tokoTbody').innerHTML = data.length
+    ? data.map(d => {
+        const cnt = orders.filter(o => (o.toko || 'Langsung') === d[0]).length;
+        return `<tr class="border-t hover:bg-slate-50">
+          <td class="px-5 py-3 font-medium">${d[0]}</td>
+          <td class="px-5 py-3 text-right">${fmt(d[1])}</td>
+          <td class="px-5 py-3 text-right">${cnt}</td>
+          <td class="px-5 py-3 text-right">${fmt(cnt ? Math.round(d[1] / cnt) : 0)}</td>
+          <td class="px-5 py-3 text-right">${totalOmset ? Math.round(d[1] / totalOmset * 100) : 0}%</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="5" class="text-center py-8 text-slate-400">Belum ada data order</td></tr>`;
+}
+
+function editToko(id) {
+  const t = DB.get('tokos').find(x => x.id === id);
+  if (!t) return;
+  document.getElementById('fTokoId').value = t.id;
+  document.getElementById('fTokoNama').value = t.nama;
+  document.getElementById('fTokoPlatform').value = t.platform;
+  document.getElementById('fTokoKet').value = t.ket || '';
+  document.getElementById('tokoFormTitle').textContent = 'Edit Toko';
+  const box = document.getElementById('tokoFormBox');
+  box.style.display = 'block';
+  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function delToko(id) {
+  if (!confirm('Hapus toko ini? Order yang sudah ada tidak akan terpengaruh.')) return;
+  DB.set('tokos', DB.get('tokos').filter(t => t.id !== id));
+  DB.remove('tokos', id);
+  renderToko();
+  updateNavBadges();
+  toast('Toko berhasil dihapus.');
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// BIAYA OPERASIONAL
+// ═══════════════════════════════════════════════════════════════════════
+// FIX: Use FormData consistently (form uses name attributes)
+function submitBiaya(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const tanggal = fd.get('tanggal');
+  const ket = fd.get('ket');
+  const jumlah = +fd.get('jumlah');
+
+  if (!tanggal) return toast('Tanggal wajib diisi', 'error');
+  if (!ket || !ket.trim()) return toast('Keterangan wajib diisi', 'error');
+  if (!jumlah || jumlah <= 0) return toast('Jumlah harus lebih dari 0', 'error');
+
+  const biaya = DB.get('biaya');
+  biaya.unshift({
+    id: uid(),
+    tanggal,
+    kategori: fd.get('kategori'),
+    ket: ket.trim(),
+    jumlah
+  });
+  DB.set('biaya', biaya);
+  DB.save('biaya', biaya[0]);
+  toggleBiayaForm(false);
+  renderBiaya();
+  renderDashboard();
+  toast('✅ Biaya berhasil disimpan!');
+}
+
+function renderBiaya() {
+  const biaya = DB.get('biaya');
+  const total = biaya.reduce((s, b) => s + b.jumlah, 0);
+  const top = biaya.slice().sort((a, b) => b.jumlah - a.jumlah)[0];
+  document.getElementById('biaya-total').textContent = fmt(total);
+  document.getElementById('biaya-top').textContent = top ? `${top.ket} (${fmt(top.jumlah)})` : '-';
+
+  const cats = {
+    Iklan: 'bg-red-100 text-red-700', Komisi: 'bg-orange-100 text-orange-700',
+    Platform: 'bg-yellow-100 text-yellow-700', Gaji: 'bg-blue-100 text-blue-700',
+    Sewa: 'bg-purple-100 text-purple-700', Utilitas: 'bg-green-100 text-green-700',
+    Lainnya: 'bg-slate-100 text-slate-700'
+  };
+
+  const tbody = document.getElementById('biayaTbody');
+  if (biaya.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><div class="icon">💸</div><p>Belum ada data biaya operasional.</p><p class="hint">Klik <strong>+ Tambah Biaya</strong> untuk mencatat pengeluaran.</p></div></td></tr>`;
+  } else {
+    tbody.innerHTML = biaya.map(b => `
+      <tr class="border-t hover:bg-slate-50">
+        <td class="px-5 py-3 text-slate-500">${b.tanggal}</td>
+        <td class="px-5 py-3"><span class="text-xs px-2 py-0.5 rounded-full font-semibold ${cats[b.kategori] || 'bg-slate-100 text-slate-700'}">${b.kategori}</span></td>
+        <td class="px-5 py-3">${b.ket}</td>
+        <td class="px-5 py-3 text-right font-semibold text-red-500">${fmt(b.jumlah)}</td>
+        <td class="px-5 py-3"><button onclick="delBiaya('${b.id}')" class="text-red-400 hover:text-red-600" title="Hapus biaya">🗑</button></td>
+      </tr>`).join('');
+  }
+}
+
+function delBiaya(id) {
+  if (!confirm('Hapus data biaya ini?')) return;
+  DB.set('biaya', DB.get('biaya').filter(b => b.id !== id));
+  DB.remove('biaya', id);
+  renderBiaya();
+  renderDashboard();
+  toast('Biaya berhasil dihapus.');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// AI INSIGHT
+// ═══════════════════════════════════════════════════════════════════════
+function renderAI() {
+  const orders = DB.get('orders').filter(o => o.status !== 'Batal');
+  const biaya = DB.get('biaya');
+  const totalOmset = orders.reduce((s, o) => s + (o.omset || 0), 0);
+  const totalBiaya = biaya.reduce((s, b) => s + b.jumlah, 0);
+
+  const pm = {};
+  orders.forEach(o => { pm[o.product] = (pm[o.product] || 0) + (o.qty || 1); });
+  const top5 = Object.entries(pm).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+  const tm = {};
+  orders.forEach(o => { const t = o.toko || 'Langsung'; tm[t] = (tm[t] || 0) + (o.omset || 0); });
+  const topCh = Object.entries(tm).sort((a, b) => b[1] - a[1]);
+
+  document.getElementById('ai-performa').innerHTML = orders.length === 0
+    ? '<span class="text-slate-400 text-xs">Belum ada data order</span>'
+    : `
+    <div class="flex justify-between"><span class="text-slate-500">Total Omset</span><span class="font-bold">${fmt(totalOmset)}</span></div>
+    <div class="flex justify-between"><span class="text-slate-500">Est. Profit (20%)</span><span class="font-bold text-green-600">${fmt(totalOmset * 0.2)}</span></div>
+    <div class="flex justify-between"><span class="text-slate-500">Total Order</span><span class="font-bold">${orders.length}</span></div>
+    <div class="flex justify-between"><span class="text-slate-500">Total Biaya</span><span class="font-bold text-red-500">${fmt(totalBiaya)}</span></div>
+    <div class="flex justify-between"><span class="text-slate-500">Avg Order Value</span><span class="font-bold">${orders.length ? fmt(Math.round(totalOmset / orders.length)) : '-'}</span></div>`;
+
+  const reks = [];
+  if (totalBiaya > totalOmset * 0.5) reks.push({ i: '⚠️', t: 'Biaya operasional terlalu tinggi (>50% omset). Evaluasi pengeluaran.', c: 'bg-red-50' });
+  if (orders.length < 10) reks.push({ i: '📢', t: 'Order masih sedikit. Tingkatkan promosi di channel terbaik.', c: 'bg-orange-50' });
+  if (top5.length > 0) reks.push({ i: '🏆', t: `Fokus stok produk "${top5[0][0]}" — paling banyak terjual.`, c: 'bg-green-50' });
+  if (topCh.length > 0) reks.push({ i: '🚀', t: `Channel "${topCh[0][0]}" paling menghasilkan. Tingkatkan di sana.`, c: 'bg-blue-50' });
+  if (!reks.length) reks.push({ i: '✅', t: 'Bisnis berjalan baik! Terus pantau data secara rutin.', c: 'bg-green-50' });
+
+  document.getElementById('ai-rek').innerHTML = reks.map(r =>
+    `<div class="flex items-start gap-2 p-2 ${r.c} rounded-lg"><span>${r.i}</span><p class="text-xs text-slate-700">${r.t}</p></div>`).join('');
+
+  document.getElementById('ai-prod').innerHTML = top5.length
+    ? top5.map((p, i) => `<div class="flex justify-between"><span>${i + 1}. ${p[0]}</span><span class="font-bold text-blue-600">${p[1]} unit</span></div>`).join('')
+    : '<span class="text-slate-400 text-xs">Belum ada data</span>';
+
+  document.getElementById('ai-chan').innerHTML = topCh.length
+    ? topCh.map((c, i) => `<div class="flex justify-between"><span>${i + 1}. ${c[0]}</span><span class="font-bold text-green-600">${fmt(c[1])}</span></div>`).join('')
+    : '<span class="text-slate-400 text-xs">Belum ada data</span>';
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// LAPORAN
+// ═══════════════════════════════════════════════════════════════════════
+let lapChartInst = null;
+
+function renderLaporan() {
+  const orders = DB.get('orders').filter(o => o.status !== 'Batal');
+  const bu = document.getElementById('lapBu')?.value || '';
+  const ch = document.getElementById('lapCh')?.value || '';
+
+  const months = [...new Set(orders.map(o => (o.tanggal || o.created_at || '').slice(0, 7)))].filter(Boolean).sort().reverse();
+  const tokos  = [...new Set(orders.map(o => o.toko || 'Langsung'))].sort();
+
+  const selBu = document.getElementById('lapBu');
+  const selCh = document.getElementById('lapCh');
+  selBu.innerHTML = '<option value="">Semua Bulan</option>' + months.map(m => `<option value="${m}" ${bu===m?'selected':''}>${m}</option>`).join('');
+  selCh.innerHTML = '<option value="">Semua Toko</option>' + tokos.map(t => `<option value="${t}" ${ch===t?'selected':''}>${t}</option>`).join('');
+
+  const filtered = orders.filter(o =>
+    (!bu || (o.tanggal || o.created_at || '').startsWith(bu)) &&
+    (!ch || (o.toko || 'Langsung') === ch)
+  );
+
+  const totalOmset = filtered.reduce((s, o) => s + (o.omset || 0), 0);
+  document.getElementById('lapStats').innerHTML = `
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Total Omset</p><p class="text-xl font-bold text-slate-800 mt-1">${fmt(totalOmset)}</p></div>
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Est. Profit</p><p class="text-xl font-bold text-green-600 mt-1">${fmt(totalOmset * 0.2)}</p></div>
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Total Order</p><p class="text-xl font-bold text-slate-800 mt-1">${filtered.length}</p></div>
+    <div class="card"><p class="text-xs text-slate-400 uppercase font-semibold">Avg Order</p><p class="text-xl font-bold text-slate-800 mt-1">${filtered.length ? fmt(Math.round(totalOmset / filtered.length)) : '-'}</p></div>`;
+
+  const byMonth = {};
+  filtered.forEach(o => { const m = (o.tanggal || o.created_at || '').slice(0, 7); if (m) byMonth[m] = (byMonth[m] || 0) + (o.omset || 0); });
+  const labels = Object.keys(byMonth).sort();
+
+  const ctx = document.getElementById('lapChart').getContext('2d');
+  if (lapChartInst) lapChartInst.destroy();
+  lapChartInst = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Omset', data: labels.map(m => byMonth[m]), backgroundColor: 'rgba(59,130,246,.7)', borderRadius: 4 },
+        { label: 'Est. Profit', data: labels.map(m => byMonth[m] * 0.2), backgroundColor: 'rgba(34,197,94,.7)', borderRadius: 4 }
+      ]
+    },
+    options: {
+      plugins: { legend: { position: 'top' } },
+      scales: {
+        y: { ticks: { callback: v => fmt(v) }, grid: { color: '#f1f5f9' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+
+  const statusBadge = s => {
+    const map = { 'Siap Kirim': 'bg-yellow-100 text-yellow-700', 'Delivery': 'bg-blue-100 text-blue-700', 'Paid': 'bg-green-100 text-green-700', 'Batal': 'bg-red-100 text-red-700' };
+    return `<span class="text-xs px-2 py-0.5 rounded-full font-semibold ${map[s] || 'bg-slate-100 text-slate-700'}">${s}</span>`;
+  };
+
+  document.getElementById('lapTbody').innerHTML = filtered.length
+    ? filtered.map(o => `
+        <tr class="border-t hover:bg-slate-50">
+          <td class="px-4 py-3 text-xs text-slate-500">${o.tanggal || o.created_at?.slice(0,10) || '-'}</td>
+          <td class="px-4 py-3 text-sm">${o.toko || '-'}</td>
+          <td class="px-4 py-3">${o.product}</td>
+          <td class="px-4 py-3 text-xs text-slate-500">${o.varian || '-'}</td>
+          <td class="px-4 py-3 text-right">${o.qty}</td>
+          <td class="px-4 py-3 text-right font-bold">${fmt(o.omset || 0)}</td>
+          <td class="px-4 py-3">${statusBadge(o.status)}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="7"><div class="empty-state"><div class="icon">📄</div><p>Tidak ada data untuk filter ini.</p></div></td></tr>`;
+}
+
+function exportCSV() {
+  const orders = DB.get('orders');
+  if (orders.length === 0) { toast('Tidak ada data untuk diekspor', 'error'); return; }
+  const rows = [['Tanggal','Toko','No Resi','Produk','Varian','Qty','Harga Jual','Omset','Fee MP','Biaya Program','Premi','Pre Order','Voucher','Gratis Ongkir','Promo Xtra','Biaya Pemasaran','Biaya Affiliate','Status']];
+  orders.forEach(o => rows.push([
+    o.tanggal || o.created_at?.slice(0,10) || '',
+    o.toko || '', o.no_resi || '', o.product, o.varian || '',
+    o.qty, o.harga_jual, o.omset || 0,
+    o.fee_mp || 0, o.biaya_program || 0, o.premi || 0, o.pre_order || 0,
+    o.voucher || 0, o.gratis_ongkir || 0, o.promo_xtra || 0,
+    o.biaya_pemasaran || 0, o.biaya_affiliate || 0, o.status
+  ]));
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,\uFEFF' + encodeURIComponent(csv);
+  a.download = 'orders_' + today() + '.csv';
+  a.click();
+  toast('CSV berhasil diekspor!');
+}
+</script>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════
+// SETTINGS
+// ═══════════════════════════════════════════════════════════════════════
+function loadSettings() {
+  const s = DB.getObj('settings');
+  document.getElementById('set-nama').value   = s.nama   || '';
+  document.getElementById('set-owner').value  = s.owner  || '';
+  document.getElementById('set-telp').value   = s.telp   || '';
+  document.getElementById('set-alamat').value = s.alamat || '';
+  document.getElementById('set-gsurl').value  = s.gsUrl  || '';
+  document.getElementById('set-gssync').checked = s.gsSync || false;
+}
+
+function saveSettings() {
+  const existing = DB.getObj('settings');
+  const s = {
+    nama:   document.getElementById('set-nama').value.trim(),
+    owner:  document.getElementById('set-owner').value.trim(),
+    telp:   document.getElementById('set-telp').value.trim(),
+    alamat: document.getElementById('set-alamat').value.trim(),
+    gsUrl:  existing.gsUrl  || '',
+    gsSync: existing.gsSync || false
+  };
+  DB.setObj('settings', s);
+  applySettings();
+  toast('✅ Pengaturan disimpan!');
+}
+
+function saveGS() {
+  const s = DB.getObj('settings');
+  s.gsUrl  = document.getElementById('set-gsurl').value.trim();
+  s.gsSync = document.getElementById('set-gssync').checked;
+  DB.setObj('settings', s);
+  toast('✅ Koneksi Google Sheets disimpan!');
+}
+
+async function testGS() {
+  const url = document.getElementById('set-gsurl').value.trim();
+  const el  = document.getElementById('gs-status');
+  if (!url) { el.textContent = '⚠️ URL belum diisi'; return; }
+  el.textContent = '⏳ Menguji...';
+  try {
+    const r = await fetch(url + '?action=test');
+    const d = await r.json();
+    el.textContent = d.status === 'ok' ? '✅ Terhubung!' : '❌ Gagal: ' + d.message;
+  } catch (err) {
+    el.textContent = '❌ Tidak dapat terhubung';
+  }
+}
+
+async function syncGS(order) {
+  const s = DB.getObj('settings');
+  if (!s.gsUrl || !s.gsSync) return;
+  try {
+    await fetch(s.gsUrl, { method: 'POST', body: JSON.stringify({ action: 'addOrder', ...order }) });
+  } catch (e) { console.log('GS sync failed:', e); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// DATA MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════
+function exportAll() {
+  const data = {
+    orders:    DB.get('orders'),
+    inventory: DB.get('inventory'),
+    cashflow:  DB.get('cashflow'),
+    biaya:     DB.get('biaya'),
+    tokos:     DB.get('tokos'),
+    settings:  DB.getObj('settings')
+  };
+  const a = document.createElement('a');
+  a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(data, null, 2));
+  a.download = 'backup_' + today() + '.json';
+  a.click();
+  toast('✅ Data berhasil diekspor!');
+}
+
+function importAll() {
+  document.getElementById('importFile').click();
+}
+
+function doImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.orders)    DB.set('orders', data.orders);
+      if (data.inventory) DB.set('inventory', data.inventory);
+      if (data.cashflow)  DB.set('cashflow', data.cashflow);
+      if (data.biaya)     DB.set('biaya', data.biaya);
+      if (data.tokos)     DB.set('tokos', data.tokos);
+      if (data.settings)  DB.setObj('settings', data.settings);
+      applySettings();
+      renderDashboard();
+      updateNavBadges();
+      toast('✅ Data berhasil diimport!');
+      e.target.value = '';
+    } catch (err) { toast('File tidak valid! Pastikan format JSON benar.', 'error'); }
+  };
+  reader.readAsText(file);
+}
+
+function clearAll() {
+  if (!confirm('⚠️ Hapus SEMUA data? Tindakan ini tidak bisa dibatalkan!')) return;
+  if (!confirm('Yakin? Semua order, inventory, cashflow, biaya, dan toko akan terhapus permanen!')) return;
+  ['orders', 'inventory', 'cashflow', 'biaya', 'tokos'].forEach(k => localStorage.removeItem(k));
+  renderDashboard();
+  updateNavBadges();
+  toast('Semua data berhasil dihapus.');
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════════════
+// Load semua data dari Supabase saat pertama buka
+async function initApp() {
+  const loadingEl = document.createElement('div');
+  loadingEl.id = 'appLoading';
+  loadingEl.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.8);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:#fff';
+  loadingEl.innerHTML = '<div style="width:40px;height:40px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite"></div><p style="font-size:14px;font-weight:600">Memuat data...</p>';
+  document.body.appendChild(loadingEl);
+
+  await Promise.all([
+    DB.load('orders'),
+    DB.load('inventory'),
+    DB.load('cashflow'),
+    DB.load('biaya'),
+    DB.load('tokos')
+  ]);
+
+  loadingEl.remove();
+  renderDashboard();
+  updateNavBadges();
+}
+initApp();
+</script>
+</body>
+</html>
